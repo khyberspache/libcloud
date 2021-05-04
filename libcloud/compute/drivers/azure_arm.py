@@ -39,7 +39,7 @@ from libcloud.utils.py3 import basestring
 from libcloud.utils import iso8601
 
 
-RESOURCE_API_VERSION = '2016-04-30-preview'
+RESOURCE_API_VERSION = '2021-03-01'
 
 
 class AzureImage(NodeImage):
@@ -1449,6 +1449,15 @@ class AzureNodeDriver(NodeDriver):
                                     params={"api-version": "2015-06-15"})
         return [(img["id"], img["name"]) for img in r.object]
 
+    def ex_create_resource_group(self, name):
+        target = f'/subscriptions/{self.subscription_id}/resourceGroups/{name}'
+        r = self.connection.request(target,
+                                    params={'api-version': '2020-10-01'},
+                                    data=dict(location=name.region),
+                                    method='PUT')
+        return AzureResourceGroup(r.object['id'], r.object['name'], r.object['location'],
+                                  r.object['properties'])
+
     def ex_list_resource_groups(self):
         """
         List resource groups.
@@ -1487,6 +1496,17 @@ class AzureNodeDriver(NodeDriver):
                                           net["properties"])
                 for net in r.object["value"]]
 
+    def ex_create_network(self, name, resource_group, address_prefixes):
+        target = f'/subscriptions/{self.subscription_id}/resourceGroups/{resource_group}/providers/' \
+                 f'Microsoft.Network/virtualNetworks/{name}'
+        data = dict(location=self.region, properties=dict(addressSpace=dict(addressPrefixes=address_prefixes)))
+        r = self.connection.request(target,
+                                    params={'api-version': '2020-11-01'},
+                                    data=data,
+                                    method='PUT')
+        return AzureNetwork(r.object["id"], r.object["name"], r.object["location"],
+                            r.object["properties"])
+
     def ex_create_network_security_group(self, name, resource_group,
                                          location=None):
         """
@@ -1520,6 +1540,15 @@ class AzureNodeDriver(NodeDriver):
                                 params={"api-version": "2016-09-01"},
                                 data=data,
                                 method='PUT')
+
+    def ex_create_subnet(self, name, resource_group, virtual_network, address_prefix):
+        target = f'/subscriptions/{self.subscription_id}/resourceGroups/{resource_group}/providers/' \
+                 f'Microsoft.Network/virtualNetworks/{virtual_network}/subnets/{name}'
+        r = self.connection.request(target,
+                                    params={'api-version': '2020-11-01'},
+                                    data=dict(properties=dict(addressPrefix=address_prefix)),
+                                    method='PUT')
+        return AzureSubnet(r.object["id"], r.object["name"], r.object["properties"])
 
     def ex_delete_network_security_group(self, name, resource_group,
                                          location=None):
@@ -1588,6 +1617,23 @@ class AzureNodeDriver(NodeDriver):
         return [AzureSubnet(net["id"], net["name"], net["properties"])
                 for net in r.object["value"]]
 
+    def ex_create_storage_account(self, name, resource_group):
+        target = f'/subscriptions/{self.subscription_id}/resourceGroups/{resource_group}/providers/' \
+                 f'Microsoft.Storage/storageAccounts/{name}'
+        r = self.connection.request(target,
+                                    params={'api-version': '2018-02-01'},
+                                    data=dict(location=self.region, kind='StorageV2', sku=dict(name='Standard_GRS')),
+                                    method='PUT')
+        return r.object
+
+    def ex_list_storage_accounts(self, resource_group):
+        target = f'/subscriptions/{self.subscription_id}/resourceGroups/{resource_group}/providers/' \
+                 f'Microsoft.Storage/storageAccounts'
+        r = self.connection.request(target,
+                                    params={'api-version': '2021-01-01'},
+                                    data=dict())
+        return r.object['value']
+
     def ex_list_nics(self, resource_group=None):
         """
         List available virtual network interface controllers
@@ -1609,7 +1655,7 @@ class AzureNodeDriver(NodeDriver):
                      (self.subscription_id, resource_group)
         r = self.connection.request(
             action,
-            params={"api-version": "2015-06-15"})
+            params={"api-version": "2021-02-01"})
         return [self._to_nic(net) for net in r.object["value"]]
 
     def ex_get_nic(self, id):
@@ -2058,7 +2104,7 @@ class AzureNodeDriver(NodeDriver):
 
         r = self.connection.request(action,
                                     params={
-                                        "api-version": "2015-05-01-preview"},
+                                        "api-version": "2021-01-01"},
                                     method="POST")
         return r.object
 
