@@ -1550,6 +1550,27 @@ class AzureNodeDriver(NodeDriver):
                                     method='PUT')
         return AzureSubnet(r.object["id"], r.object["name"], r.object["properties"])
 
+    def ex_create_security_rule(self, name, resource_group, security_group):
+        target = f'/subscriptions/{self.subscription_id}/resourceGroups/{resource_group}/providers/' \
+                 f'Microsoft.Network/networkSecurityGroups/{security_group}/securityRules/{name}'
+        data = {
+            "properties": {
+                "protocol": "*",
+                "sourceAddressPrefix": "*",
+                "destinationAddressPrefix": "*",
+                "access": "Allow",
+                "destinationPortRange": "22",
+                "sourcePortRange": "*",
+                "priority": 100,
+                "direction": "Inbound"
+            }
+        }
+        r = self.connection.request(target,
+                                    params={'api-version': '2020-11-01'},
+                                    data=data,
+                                    method='PUT')
+        return r.object
+
     def ex_delete_network_security_group(self, name, resource_group,
                                          location=None):
         """
