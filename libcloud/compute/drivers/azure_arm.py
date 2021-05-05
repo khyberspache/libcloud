@@ -1957,7 +1957,7 @@ class AzureNodeDriver(NodeDriver):
 
         return r.status in [200, 202, 204]
 
-    def ex_create_network_interface(self, name, subnet, resource_group,
+    def ex_create_network_interface(self, name, subnet, resource_group, security_group=None,
                                     location=None, public_ip=None):
         """
         Create a virtual network interface (NIC).
@@ -1970,6 +1970,9 @@ class AzureNodeDriver(NodeDriver):
 
         :param resource_group: The resource group to create the NIC
         :type resource_group: ``str``
+
+        :param subnet: The subnet to attach the NIC
+        :type subnet: :class:`.AzureNetworkSecurityGroup`
 
         :param location: The location at which to create the NIC
         (if None, use default location specified as 'region' in __init__)
@@ -2008,6 +2011,14 @@ class AzureNodeDriver(NodeDriver):
                 }]
             }
         }
+
+        if security_group:
+            data["properties"]["networkSecurityGroup"] = {
+                "id": security_group.id,
+                "location": security_group.location,
+                "name": security_group.name,
+                "properties": security_group.extra
+            }
 
         if public_ip:
             ip_config = data["properties"]["ipConfigurations"][0]
